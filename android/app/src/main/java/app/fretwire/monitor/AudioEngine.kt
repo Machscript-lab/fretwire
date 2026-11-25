@@ -43,6 +43,9 @@ class AudioEngine(private val context: Context) {
         private set
     @Volatile var latencyMs = 0
         private set
+    /** True while Android is feeding us silence because another app (e.g. Yousician) has the input. */
+    @Volatile var silenced = false
+        private set
 
     /** Called on the audio thread when the engine stops by itself (error or device loss). */
     var onFailure: ((String) -> Unit)? = null
@@ -175,6 +178,9 @@ class AudioEngine(private val context: Context) {
                     outputName = track.routedDevice?.let(::describe)
                     // Output buffer + one input burst; device/driver latency isn't visible here.
                     latencyMs = ((target + burst) * 1000L / sampleRate).toInt()
+                    if (Build.VERSION.SDK_INT >= 29) {
+                        silenced = rec.activeRecordingConfiguration?.isClientSilenced == true
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -188,6 +194,7 @@ class AudioEngine(private val context: Context) {
             try { track?.pause(); track?.flush() } catch (_: Exception) {}
             track?.release()
             level = 0f
+            silenced = false
         }
     }
 

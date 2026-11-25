@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">Fretwire Monitor</string>
+    <string name="a11y_label">Fretwire: hear guitar in other apps</string>
+    <string name="a11y_summary">Lets you hear your guitar while Yousician or another app is listening to it.</string>
+    <string name="a11y_description">Android normally lets only one app hear the guitar input at a time, so opening Yousician silences Fretwire Monitor. Turning this on lets both apps hear it, so you keep hearing your guitar in your headphones while Yousician grades you. This service does not read your screen, track what you type, or collect anything.</string>
 </resources>

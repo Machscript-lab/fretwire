@@ -58,7 +58,7 @@ class Overlay(private val context: Context, private val onClose: () -> Unit) {
             val e = Monitor.engine
             bubble.level = e.level
             bubble.muted = e.muted
-            bubble.live = e.running
+            bubble.live = e.running && !e.silenced
             bubble.invalidate()
             muteBtn.text = if (e.muted) "UNMUTE" else "MUTE"
             if (!seeking && seek.progress != Monitor.volume) seek.progress = Monitor.volume

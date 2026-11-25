@@ -49,6 +49,8 @@ class MainActivity : Activity() {
     private lateinit var outputSpinner: Spinner
     private lateinit var lowLatency: Switch
     private lateinit var floating: Switch
+    private lateinit var shareStatus: TextView
+    private lateinit var shareBtn: Button
 
     private var inputKeys = listOf<String>()
     private var outputKeys = listOf<String>()
@@ -193,9 +195,38 @@ class MainActivity : Activity() {
         s.setSelection(selection, false)
     }
 
+    private fun showShareSetup() {
+        val restricted = if (Build.VERSION.SDK_INT >= 33) "\n\nIf the switch is greyed out (\"Restricted setting\"): go back, " +
+            "tap \"App info\", tap ⋮ in the top corner, choose \"Allow restricted settings\", then try again." else ""
+        AlertDialog.Builder(this)
+            .setTitle("Let both apps hear the guitar")
+            .setMessage(
+                "Android normally lets only one app hear your iRig at a time, so Yousician silences this app.\n\n" +
+                    "On the next screen, find \"Fretwire: hear guitar in other apps\" (it may be under " +
+                    "\"Installed apps\" or \"Downloaded apps\") and turn it on. It doesn't read your screen or collect anything; " +
+                    "it only tells Android to keep feeding the guitar to this app too." + restricted
+            )
+            .setPositiveButton("Open settings") { _, _ ->
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+            .setNeutralButton("App info") { _, _ ->
+                startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+                )
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
     // ---- Status ----
 
     private fun refresh() {
+        val shared = ShareInputService.isEnabled(this)
+        shareStatus.text = if (shared)
+            "On. Start the monitor, then open Yousician. You'll keep hearing your guitar while Yousician listens."
+        else
+            "Off. Android only lets one app hear the iRig, so Yousician silences this one. Turn this on so both can."
+        shareBtn.text = if (shared) "SETTINGS" else "TURN ON"
         val e = Monitor.engine
         meter.level = e.level
         meter.muted = e.muted
@@ -215,6 +246,11 @@ class MainActivity : Activity() {
                 else "Off. Plug in your iRig, then tap START."
             }
             Monitor.message != null && !e.running -> Monitor.message
+            e.running && e.silenced && !ShareInputService.isEnabled(this) ->
+                "Another app (like Yousician) took the guitar input. Turn on \"Hear your guitar inside Yousician\" below so both apps can hear it."
+            e.running && e.silenced ->
+                "Android is still giving the guitar input only to the other app. It may be using a private " +
+                    "audio mode (like a call), which Android never shares."
             e.running -> buildString {
                 append(if (e.muted) "Muted" else "Live")
                 e.inputName?.let { append(" · from $it") }
@@ -268,6 +304,39 @@ class MainActivity : Activity() {
             setOnClickListener { onStartStop() }
         }
         col.addView(startBtn, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(58)))
+
+        // Yousician mode: needs the accessibility service so Android lets both apps hear the iRig.
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(16).toFloat()
+                setColor(0xFF12121C.toInt())
+                setStroke(dp(1), 0x553DF2B0)
+            }
+        }
+        card.addView(TextView(this).apply {
+            text = "Hear your guitar inside Yousician"
+            setTextColor(Color.WHITE)
+            textSize = 16f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        })
+        shareStatus = TextView(this).apply {
+            setTextColor(0xFFB0B0C0.toInt())
+            textSize = 13f
+            setPadding(0, dp(6), 0, dp(10))
+        }
+        card.addView(shareStatus)
+        shareBtn = Button(this).apply {
+            textSize = 14f
+            setTextColor(0xFF05050A.toInt())
+            background = pill(0xFF3DF2B0.toInt())
+            setOnClickListener { showShareSetup() }
+        }
+        card.addView(shareBtn, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46)))
+        col.addView(card, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = dp(16) })
 
         volumeLabel = label("Guitar volume")
         col.addView(volumeLabel)

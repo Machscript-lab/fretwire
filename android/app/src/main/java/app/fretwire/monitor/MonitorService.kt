@@ -30,6 +30,7 @@ class MonitorService : Service() {
     private val listener: () -> Unit = { handler.post { updateNotification() } }
 
     private val reconcile = Runnable { if (Monitor.active) startEngine(force = false) }
+    private val retry = Runnable { if (Monitor.active && !Monitor.engine.running) startEngine(force = true) }
 
     private val deviceCallback = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(added: Array<out AudioDeviceInfo>) = schedule()
@@ -54,8 +55,11 @@ class MonitorService : Service() {
         Monitor.engine.onFailure = { msg ->
             handler.post {
                 inputKey = null
-                Monitor.message = "Stopped: $msg"
+                Monitor.message = "Input interrupted ($msg). Retrying…"
                 Monitor.changed()
+                // Another app may have grabbed the input; keep trying until it lets go.
+                handler.removeCallbacks(retry)
+                handler.postDelayed(retry, 2000)
             }
         }
         Monitor.addListener(listener)
